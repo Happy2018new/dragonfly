@@ -4,6 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net"
+	"sync"
+	"time"
+
 	"github.com/df-mc/atomic"
 	"github.com/df-mc/dragonfly/server/block"
 	"github.com/df-mc/dragonfly/server/block/cube"
@@ -21,10 +26,6 @@ import (
 	"github.com/sandertv/gophertunnel/minecraft/protocol/login"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 	"github.com/sandertv/gophertunnel/minecraft/text"
-	"io"
-	"net"
-	"sync"
-	"time"
 )
 
 // Session handles incoming packets from connections and sends outgoing packets by providing a thin layer
@@ -414,6 +415,30 @@ func (s *Session) changeDimension(dim int32, silent bool) {
 // handlePacket handles an incoming packet, processing it accordingly. If the packet had invalid data or was
 // otherwise not valid in its context, an error is returned.
 func (s *Session) handlePacket(pk packet.Packet) error {
+
+	switch pk.(type) {
+	case *packet.PlayerAuthInput:
+	case *packet.ItemStackRequest:
+		a, ok := pk.(*packet.ItemStackRequest)
+		if ok {
+			fmt.Printf("%#v\n", pk)
+			b := a.Requests[0]
+			for _, val := range b.Actions {
+				fmt.Printf("%#v\n", val)
+			}
+		}
+	case *packet.InventoryTransaction:
+		a, ok := pk.(*packet.InventoryTransaction)
+		if ok {
+			fmt.Printf("%#v\n", pk)
+			fmt.Printf("%#v\n", *&a.TransactionData)
+			fmt.Println("SUCCESS")
+		}
+	default:
+		fmt.Printf("%#v\n", pk)
+		fmt.Println(123)
+	}
+
 	handler, ok := s.handlers[pk.ID()]
 	if !ok {
 		s.log.Debugf("unhandled packet %T%v from %v\n", pk, fmt.Sprintf("%+v", pk)[1:], s.conn.RemoteAddr())
@@ -480,6 +505,21 @@ func (s *Session) handleInterfaceUpdate(slot int, _, item item.Stack) {
 
 // writePacket writes a packet to the session's connection if it is not Nop.
 func (s *Session) writePacket(pk packet.Packet) {
+
+	/*
+		switch pk.ID() {
+		case packet.IDInventoryContent:
+		case packet.IDContainerOpen:
+			fmt.Printf("%#v\n", pk)
+		case packet.IDSetTime:
+		case packet.IDLevelEvent:
+		case packet.IDItemStackResponse:
+			fmt.Printf("%#v\n", pk)
+		default:
+			//fmt.Printf("%#v\n", pk)
+		}
+	*/
+
 	if s == Nop {
 		return
 	}
